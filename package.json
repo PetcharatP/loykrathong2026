@@ -1,0 +1,9 @@
+{
+  "name": "loy-krathong-pixel",
+  "version": "1.0.0",
+  "private": true,
+  "description": "ลอยกระทงออนไลน์สไตล์พิกเซล",
+  "dependencies": {
+    "@neondatabase/serverless": "^0.10.4"
+  }
+}

@@ -1,0 +1,483 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ลอยกระทงพิกเซล</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@400;700&family=Sarabun:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0a0820; --panel:#1a1442; --edge:#f6d86b; --ink:#fff4d6; --accent:#ff7ac8;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;background:var(--bg);color:var(--ink);
+    font-family:'Pixelify Sans','Sarabun',Tahoma,sans-serif;}
+  body{min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:12px}
+  h1{font-size:clamp(20px,4vw,32px);margin:6px 0 2px;text-align:center;
+    text-shadow:3px 3px 0 #5a2a8a;letter-spacing:1px}
+  .sub{margin:0 0 10px;font-size:14px;opacity:.8;text-align:center}
+  .px{border:4px solid var(--edge);
+    box-shadow:0 0 0 4px #000, 6px 6px 0 4px #000;background:var(--panel)}
+  .stage{position:relative;width:100%;max-width:960px;line-height:0}
+  canvas{width:100%;height:auto;display:block;touch-action:manipulation;
+    image-rendering:pixelated;image-rendering:crisp-edges;cursor:pointer;background:#0b1030}
+  .bubble{position:absolute;left:50%;bottom:14px;transform:translateX(-50%);
+    width:min(86%,520px);padding:10px 14px;line-height:1.45;display:none;
+    border:4px solid var(--edge);background:rgba(20,14,60,.95);
+    box-shadow:0 0 0 4px #000;z-index:2}
+  .bubble.show{display:block}
+  .bubble .who{color:var(--edge);font-weight:700;font-size:15px;margin-bottom:4px;word-break:break-word}
+  .bubble .msg{font-size:16px;word-break:break-word;white-space:pre-wrap}
+  .bubble .x{position:absolute;top:2px;right:8px;cursor:pointer;font-size:18px;color:var(--accent);
+    background:none;border:0;font-family:inherit;line-height:1}
+  .count{position:absolute;top:10px;left:10px;line-height:1.2;font-size:13px;
+    padding:4px 8px;background:rgba(10,8,32,.75);border:3px solid var(--edge);z-index:2}
+  form{width:100%;max-width:960px;margin-top:22px;padding:16px;display:grid;gap:12px;
+    grid-template-columns:1fr 2fr}
+  label{display:block;font-size:14px;margin-bottom:4px;color:var(--edge)}
+  input[type=text],textarea{width:100%;padding:9px 10px;font:inherit;font-size:16px;color:var(--ink);
+    background:#0d0a2c;border:3px solid #6d5fd0;outline:none;border-radius:0}
+  input:focus,textarea:focus{border-color:var(--edge)}
+  textarea{resize:none;height:44px}
+  .full{grid-column:1/-1}
+  .styles{display:flex;gap:10px;flex-wrap:wrap}
+  .sw{width:38px;height:38px;border:3px solid #000;cursor:pointer;position:relative;padding:0}
+  .sw.on{outline:4px solid var(--edge);outline-offset:1px}
+  button.go{font:inherit;font-weight:700;font-size:18px;padding:10px 22px;cursor:pointer;
+    color:#2a0a2a;background:var(--accent);border:4px solid #000;
+    box-shadow:4px 4px 0 #5a2a8a}
+  button.go:hover{transform:translate(-1px,-1px)}
+  button.go:active{transform:translate(3px,3px);box-shadow:1px 1px 0 #5a2a8a}
+  button.go:disabled{opacity:.5;cursor:wait}
+  .err{color:#ff8a8a;font-size:14px;min-height:18px}
+  .foot{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+  @media(max-width:640px){
+    body{padding:8px 8px 24px}
+    .px{border-width:3px;box-shadow:0 0 0 3px #000,4px 4px 0 3px #000}
+    form{grid-template-columns:1fr;padding:12px;margin-top:18px}
+    .sub{font-size:12px}
+    button.go{width:100%}
+    .bubble{bottom:8px;width:92%;padding:8px 12px}
+    .bubble .msg{font-size:15px}
+    .count{font-size:11px;top:6px;left:6px}
+    textarea{height:70px}
+  }
+</style>
+</head>
+<body>
+  <h1>🪷 ลอยกระทงพิกเซล 🪷</h1>
+  <p class="sub">เขียนชื่อและคำอธิษฐาน แล้วปล่อยกระทงลงแม่น้ำ — แตะกระทงเพื่ออ่านข้อความของคนอื่น</p>
+
+  <div class="stage px">
+    <canvas id="c"></canvas>
+    <div class="count" id="count">กระทง: 0</div>
+    <div class="bubble" id="bubble">
+      <button class="x" id="bx" aria-label="ปิด">✕</button>
+      <div class="who" id="bwho"></div>
+      <div class="msg" id="bmsg"></div>
+    </div>
+  </div>
+
+  <form id="f" class="px" autocomplete="off">
+    <div>
+      <label for="name">ชื่อ</label>
+      <input type="text" id="name" maxlength="24" placeholder="ชื่อของคุณ" required>
+    </div>
+    <div>
+      <label for="msg">ข้อความ / คำอธิษฐาน</label>
+      <textarea id="msg" maxlength="120" placeholder="ขอให้..." required></textarea>
+    </div>
+    <div class="full">
+      <label>เลือกสีกระทง</label>
+      <div class="styles" id="styles"></div>
+    </div>
+    <div class="full foot">
+      <button class="go" id="go" type="submit">🪷 ลอยกระทง</button>
+      <span class="err" id="err"></span>
+    </div>
+  </form>
+
+<script>
+(() => {
+  // มือถือ: แคนวาสแนวตั้ง ความละเอียดต่ำลงให้พิกเซลใหญ่ขึ้น / เดสก์ท็อป: 16:9
+  let W = 320, H = 180, HORIZON = 94;
+  const canvas = document.getElementById('c');
+  const ctx = canvas.getContext('2d');
+  const isMobile = () => window.innerWidth < 640;
+  function setup() {
+    const m = isMobile();
+    W = m ? 200 : 320;
+    H = m ? 270 : 180;
+    HORIZON = Math.round(H * 0.52);
+    canvas.width = W; canvas.height = H;
+    ctx.imageSmoothingEnabled = false;
+  }
+  setup();
+  window.addEventListener('resize', () => { if (isMobile() !== (W === 200)) setup(); });
+
+  const PALETTES = [
+    ['#ff7ac8', '#ffc2e6'], // ชมพู
+    ['#ffffff', '#cfd8ff'], // ขาว
+    ['#ffd23f', '#fff08a'], // เหลือง
+    ['#b48cff', '#e0ccff'], // ม่วง
+    ['#ff8a3d', '#ffc08a'], // ส้ม
+  ];
+
+  const R = (c, x, y, w, h) => { ctx.fillStyle = c; ctx.fillRect(x | 0, y | 0, w, h); };
+  const mod = (a, m) => ((a % m) + m) % m;
+  const hash = (n) => {
+    n = (n * 2654435761) >>> 0;
+    n ^= n >>> 15;
+    n = Math.imul(n, 2246822519) >>> 0;
+    n ^= n >>> 13;
+    return n >>> 0;
+  };
+
+  // ---------- state ----------
+  const krathongs = new Map();
+  let skew = 0;
+  let selectedId = null;
+  const nowMs = () => Date.now() + skew;
+
+  // ---------- static scenery data ----------
+  const stars = Array.from({ length: 55 }, (_, i) => {
+    const h = hash(i + 7);
+    return { h, p: (h >>> 17) % 100 / 10,
+      get x() { return this.h % W; },
+      get y() { return (this.h >>> 9) % (HORIZON - 14); } };
+  });
+  const lanterns = Array.from({ length: 9 }, (_, i) => {
+    const h = hash(i + 99);
+    return { h, off: (h >>> 8) % 200, sp: 4 + (h >>> 16) % 5, ph: (h >>> 20) % 6,
+      get x() { return this.h % W; } };
+  });
+  const MOON = { x: 64, y: 30, r: 11 };
+
+  // ---------- drawing: scenery ----------
+  function drawSky(t) {
+    const bands = ['#0a0828', '#100c36', '#1a1248', '#281a5a', '#3a2468', '#53306f'];
+    const bh = Math.ceil(HORIZON / bands.length);
+    bands.forEach((c, i) => R(c, 0, i * bh, W, bh + 1));
+    for (const s of stars) {
+      const tw = Math.sin(t * 2 + s.p);
+      if (tw > -0.6) R(tw > 0.7 ? '#ffffff' : '#b9b4ff', s.x, s.y, 1, 1);
+      if (tw > 0.95) { R('#ffffff', s.x - 1, s.y, 3, 1); R('#ffffff', s.x, s.y - 1, 1, 3); }
+    }
+    // moon
+    for (let y = -MOON.r; y <= MOON.r; y++) {
+      for (let x = -MOON.r; x <= MOON.r; x++) {
+        const d = x * x + y * y;
+        if (d <= MOON.r * MOON.r) {
+          let c = '#fff6c9';
+          if (d > (MOON.r - 2) * (MOON.r - 2)) c = '#f6e6a0';
+          R(c, MOON.x + x, MOON.y + y, 1, 1);
+        }
+      }
+    }
+    R('#e8d68a', MOON.x - 4, MOON.y - 3, 3, 2);
+    R('#e8d68a', MOON.x + 3, MOON.y + 2, 4, 3);
+    R('#e8d68a', MOON.x - 2, MOON.y + 5, 2, 2);
+    // moon glow
+    ctx.globalAlpha = 0.08;
+    for (let r = MOON.r + 2; r < MOON.r + 14; r += 3) {
+      for (let a = 0; a < 40; a++) {
+        const ang = (a / 40) * Math.PI * 2;
+        R('#fff6c9', MOON.x + Math.cos(ang) * r, MOON.y + Math.sin(ang) * r, 2, 2);
+      }
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  function drawFarBank(t) {
+    const dark = '#140c30', mid = '#1c1040';
+    // distant hills
+    for (let x = 0; x < W; x++) {
+      const h = 5 + Math.round(Math.sin(x * 0.04) * 3 + Math.sin(x * 0.11) * 2);
+      R(mid, x, HORIZON - h, 1, h + 2);
+    }
+    // trees
+    for (let i = 0; i < 16; i++) {
+      const x = i * 21 + (hash(i) % 8);
+      if (x > W - 115) continue;
+      const h = 9 + hash(i + 3) % 8;
+      R(dark, x, HORIZON - h, 7, h + 2);
+      R(dark, x - 2, HORIZON - h + 4, 11, h - 2);
+      R(dark, x + 2, HORIZON - h - 3, 3, 3);
+    }
+    // วัด: เจดีย์ + ศาลา
+    const cx = W - 72, by = HORIZON + 1;
+    R(dark, cx - 22, by - 8, 44, 9);               // ฐานวิหาร
+    R(dark, cx - 18, by - 13, 36, 5);              // หลังคา
+    R(dark, cx - 12, by - 17, 24, 4);
+    R(dark, cx - 6, by - 20, 12, 3);
+    R(dark, cx - 1, by - 24, 2, 4);
+    // เจดีย์
+    const px = cx + 34;
+    R(dark, px - 7, by - 6, 14, 7);
+    R(dark, px - 5, by - 12, 10, 6);
+    R(dark, px - 4, by - 17, 8, 5);
+    R(dark, px - 3, by - 22, 6, 5);
+    R(dark, px - 2, by - 27, 4, 5);
+    R(dark, px - 1, by - 32, 2, 5);
+    R('#f6d86b', px, by - 34, 1, 2);
+    // หน้าต่างสว่าง
+    const glow = Math.sin(t * 3) > -0.3 ? '#ffd86b' : '#d9a93b';
+    for (let i = 0; i < 5; i++) R(glow, cx - 15 + i * 7, by - 6, 3, 4);
+    R(glow, px - 1, by - 4, 3, 4);
+    // โคมไฟริมฝั่ง
+    for (let i = 0; i < 10; i++) {
+      const x = 8 + i * 31 + (hash(i + 40) % 10);
+      const on = Math.sin(t * 2 + i * 1.7) > -0.5;
+      R(on ? '#ffcf5a' : '#b98a2c', x, HORIZON - 1, 2, 2);
+    }
+    R('#0e0824', 0, HORIZON + 1, W, 3);
+  }
+
+  function drawWater(t) {
+    const rows = ['#1c2a6a', '#182560', '#142056', '#101a4a', '#0d153e', '#0a1133', '#080d2a'];
+    const top = HORIZON + 4;
+    const bh = Math.ceil((H - top) / rows.length);
+    rows.forEach((c, i) => R(c, 0, top + i * bh, W, bh + 1));
+
+    // moon reflection
+    for (let y = top; y < H; y += 2) {
+      const k = (y - top) / (H - top);
+      const sway = Math.sin(t * 1.6 + y * 0.4) * (2 + k * 5);
+      const w = Math.max(2, Math.round(MOON.r * 1.6 * (1 - k * 0.35) + Math.sin(t * 2 + y) * 2));
+      if (Math.sin(y * 0.9 + t * 3) > -0.4) {
+        ctx.globalAlpha = 0.45 * (1 - k * 0.7);
+        R('#fff1a8', MOON.x - w / 2 + sway, y, w, 1);
+      }
+    }
+    ctx.globalAlpha = 1;
+
+    // temple window reflections
+    ctx.globalAlpha = 0.35;
+    for (let i = 0; i < 5; i++) {
+      const y = top + 3 + i * 4;
+      R('#ffd86b', W - 84 + Math.sin(t * 2 + i) * 3, y, 14 + (i % 2) * 6, 1);
+    }
+    ctx.globalAlpha = 1;
+
+    // waves
+    for (let y = top + 2; y < H; y += 3) {
+      const k = (y - top) / (H - top);
+      for (let x = 0; x < W; x++) {
+        const v = Math.sin(x * 0.13 + t * 1.4 + y * 0.7) + Math.sin(x * 0.05 - t * 0.9 + y);
+        if (v > 1.75) {
+          ctx.globalAlpha = 0.35 + k * 0.3;
+          R('#6a7fe0', x, y, 3 + Math.floor(k * 3), 1);
+        }
+      }
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  function drawLanterns(t) {
+    // โคมลอย ลอยขึ้นฟ้า
+    for (const l of lanterns) {
+      const span = H + 60;
+      const y = H - mod((t * l.sp + l.off), span) + 20;
+      if (y > HORIZON + 8) continue;
+      const x = l.x + Math.sin(t * 0.8 + l.ph) * 6;
+      const a = Math.min(1, (HORIZON + 8 - y) / 24);
+      const sz = y < 50 ? 4 : 5;
+      ctx.globalAlpha = 0.18 * a;
+      R('#ff9d3d', x - 3, y - 3, sz + 6, sz + 8);
+      ctx.globalAlpha = a;
+      R('#ff8a2a', x, y, sz, sz + 1);
+      R('#ffd27a', x + 1, y, sz - 2, 1);
+      R('#a8481a', x, y + sz + 1, sz, 1);
+      ctx.globalAlpha = 1;
+    }
+  }
+
+  // ---------- drawing: krathong ----------
+  function drawKrathong(x, y, style, t, id) {
+    const [c1, c2] = PALETTES[style] || PALETTES[0];
+    // reflection / glow on water
+    ctx.globalAlpha = 0.25;
+    R('#ffb84a', x - 7, y + 5, 15, 1);
+    R('#ffb84a', x - 4, y + 7, 9, 1);
+    ctx.globalAlpha = 0.12;
+    R('#ffb84a', x - 13, y - 14, 27, 22);
+    ctx.globalAlpha = 1;
+    // base: ใบตอง
+    R('#1d5e2a', x - 6, y + 3, 13, 1);
+    R('#2e8b3a', x - 8, y, 17, 3);
+    R('#55c15f', x - 7, y, 15, 1);
+    R('#3aa048', x - 8, y + 1, 1, 1);
+    // petals
+    for (let i = -5; i <= 5; i++) R(i % 2 ? c2 : c1, x + i, y - 2, 1, 2);
+    for (let i = -4; i <= 4; i += 2) R(c2, x + i, y - 3, 1, 1);
+    for (let i = -3; i <= 3; i++) R(i % 2 ? c1 : c2, x + i, y - 3, 1, 1);
+    R(c1, x - 2, y - 4, 5, 1);
+    R(c2, x - 1, y - 5, 3, 1);
+    // candle
+    R('#fff4d6', x - 1, y - 11, 3, 6);
+    R('#e4d3a8', x + 1, y - 11, 1, 6);
+    R('#333', x, y - 12, 1, 1);
+    const fr = Math.floor(t * 7 + id) % 3;
+    R('#ff9d1a', x, y - 14 + (fr === 1 ? 1 : 0), 1, 2);
+    R('#fff2a8', x, y - 15 + (fr === 1 ? 1 : 0), 1, 1);
+    if (fr === 2) R('#ffcf5a', x + 1, y - 14, 1, 1);
+    // incense
+    R('#8b5a2b', x + 5, y - 9, 1, 6);
+    R('#ff3b30', x + 5, y - 10, 1, 1);
+    R('#8b5a2b', x - 6, y - 8, 1, 5);
+    R('#ff3b30', x - 6, y - 9, 1, 1);
+  }
+
+  function posOf(k, t) {
+    const h = hash(k.id);
+    const lane = h % 5;
+    const speed = 3 + ((h >>> 3) % 5) * 0.8;
+    const x0 = (h >>> 8) % W;
+    const age = (nowMs() - k.created) / 1000;
+    const span = W + 40;
+    const x = mod(x0 + age * speed, span) - 20;
+    const y = HORIZON + 18 + lane * ((H - HORIZON - 34) / 4) + Math.sin(t * 1.6 + h) * 1;
+    return { x: Math.round(x), y: Math.round(y) };
+  }
+
+  function drawArrow(x, y, t) {
+    const b = Math.round(Math.sin(t * 5) * 1.5);
+    const ay = y - 25 + b;
+    R('#000', x - 4, ay - 1, 9, 1);
+    R('#f6d86b', x - 3, ay, 7, 1);
+    R('#f6d86b', x - 2, ay + 1, 5, 1);
+    R('#f6d86b', x - 1, ay + 2, 3, 1);
+    R('#f6d86b', x, ay + 3, 1, 1);
+  }
+
+  // ---------- main loop ----------
+  let positions = [];
+  function frame(ts) {
+    const t = ts / 1000;
+    drawSky(t);
+    drawLanterns(t);
+    drawFarBank(t);
+    drawWater(t);
+
+    const list = [];
+    for (const k of krathongs.values()) {
+      const p = posOf(k, t);
+      list.push({ k, x: p.x, y: p.y });
+    }
+    list.sort((a, b) => a.y - b.y);
+    positions = list;
+    for (const o of list) drawKrathong(o.x, o.y, o.k.style, t, o.k.id);
+    const sel = list.find((o) => o.k.id === selectedId);
+    if (sel) drawArrow(sel.x, sel.y, t);
+
+    // foreground reeds
+    for (let i = 0; i < 14; i++) {
+      const x = i < 7 ? i * 5 : W - (i - 6) * 5;
+      const sw = Math.round(Math.sin(t * 1.5 + i) * 1);
+      R('#0a1a1a', x + sw, H - 14 - (i % 3) * 3, 1, 15);
+      R('#0a1a1a', x + sw + 1, H - 9 - (i % 2) * 3, 1, 10);
+    }
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+
+  // ---------- interaction ----------
+  const bubble = document.getElementById('bubble');
+  const bwho = document.getElementById('bwho');
+  const bmsg = document.getElementById('bmsg');
+  const countEl = document.getElementById('count');
+
+  function select(id) {
+    const k = krathongs.get(id);
+    if (!k) return;
+    selectedId = id;
+    bwho.textContent = '🪷 ' + k.name;
+    bmsg.textContent = k.message;
+    bubble.classList.add('show');
+  }
+  function closeBubble() { selectedId = null; bubble.classList.remove('show'); }
+  document.getElementById('bx').addEventListener('click', (e) => { e.stopPropagation(); closeBubble(); });
+
+  canvas.addEventListener('click', (e) => {
+    const r = canvas.getBoundingClientRect();
+    const px = ((e.clientX - r.left) / r.width) * W;
+    const py = ((e.clientY - r.top) / r.height) * H;
+    let hit = null;
+    for (const o of positions) {
+      if (Math.abs(px - o.x) <= 12 && py >= o.y - 19 && py <= o.y + 8) hit = o; // ตัวท้ายสุด = อยู่หน้าสุด
+    }
+    if (hit) select(hit.k.id); else closeBubble();
+  });
+
+  function updateCount() { countEl.textContent = 'กระทง: ' + krathongs.size; }
+
+  // ---------- data ----------
+  async function load() {
+    try {
+      const r = await fetch('/api/krathongs', { cache: 'no-store' });
+      if (!r.ok) return;
+      const d = await r.json();
+      skew = d.now - Date.now();
+      const ids = new Set();
+      for (const it of d.items) { krathongs.set(it.id, it); ids.add(it.id); }
+      for (const id of [...krathongs.keys()]) if (!ids.has(id)) krathongs.delete(id);
+      updateCount();
+    } catch (e) { /* เงียบไว้ ลองใหม่รอบหน้า */ }
+  }
+  load();
+  setInterval(load, 10000);
+
+  // ---------- form ----------
+  const stylesEl = document.getElementById('styles');
+  let chosen = 0;
+  PALETTES.forEach((p, i) => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'sw' + (i === 0 ? ' on' : '');
+    b.style.background = `linear-gradient(135deg, ${p[0]} 50%, ${p[1]} 50%)`;
+    b.setAttribute('aria-label', 'สีที่ ' + (i + 1));
+    b.addEventListener('click', () => {
+      chosen = i;
+      [...stylesEl.children].forEach((c, j) => c.classList.toggle('on', j === i));
+    });
+    stylesEl.appendChild(b);
+  });
+
+  const form = document.getElementById('f');
+  const err = document.getElementById('err');
+  const go = document.getElementById('go');
+  const nameEl = document.getElementById('name');
+  const msgEl = document.getElementById('msg');
+  try { nameEl.value = localStorage.getItem('krathong_name') || ''; } catch (e) {}
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    err.textContent = '';
+    go.disabled = true;
+    try {
+      const r = await fetch('/api/krathongs', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: nameEl.value, message: msgEl.value, style: chosen }),
+      });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(d.error || 'ลอยกระทงไม่สำเร็จ ลองใหม่อีกครั้ง');
+      skew = d.now - Date.now();
+      krathongs.set(d.item.id, d.item);
+      updateCount();
+      select(d.item.id);
+      try { localStorage.setItem('krathong_name', nameEl.value); } catch (e) {}
+      msgEl.value = '';
+      canvas.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    } catch (ex) {
+      err.textContent = ex.message;
+    } finally {
+      go.disabled = false;
+    }
+  });
+})();
+</script>
+</body>
+</html>
